@@ -1,0 +1,45 @@
+name: Build and Release Docker Image
+
+on:
+  push:
+     branches: [ "master" ]
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-22.0.4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # 构建或拉取 Docker 镜像
+      - name: Build Docker Image
+        run: |
+          docker build -t kafka:latest .
+      
+      # 保存 Docker 镜像为 tar 文件
+      - name: Save Docker Image as tar
+        run: |
+          docker save -o ./kafka.tar kafka:latest
+      
+      # 创建 GitHub 发布版本
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+      
+      # 上传 tar 文件作为资产
+      - name: Upload Docker Image as Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./kafka.tar
+          asset_name: kafka-${{ github.ref_name }}.tar
+          asset_content_type: application/x-tar
